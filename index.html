@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Spaced Repetition App</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .tab { display: none; padding: 20px; border: 1px solid #ccc; margin-top: 10px; }
+        .active { display: block; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
+        .security-box { background: #fee; padding: 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="security-box">
+        <label>🔒 アプリパスワード: </label>
+        <input type="password" id="appPassword" placeholder="GASに設定したパスワード">
+    </div>
+    <br>
+
+    <button onclick="showTab('study')">Study</button>
+    <button onclick="showTab('check')">Check</button>
+    <button onclick="showTab('list')">List</button>
+
+    <div id="study" class="tab active">
+        <h2>Study Mode</h2>
+        <input type="text" id="wordInput" placeholder="単語を入力">
+        <button onclick="addWordToTemp()">追加して一時保存</button>
+        <p>現在の一時保存数: <span id="tempCount">0</span></p>
+        <button onclick="finishStudy()">学習終了（シートへ送信）</button>
+    </div>
+
+    <div id="check" class="tab">
+        <h2>Check Mode</h2>
+        <div id="checkSetup">
+            <input type="number" id="questionCount" value="5" min="1" placeholder="問題数 n">
+            <button onclick="startCheck()">テスト開始</button>
+        </div>
+        <div id="checkActive" style="display: none;">
+            <h3 id="currentWordDisplay">単語名</h3>
+            <button onclick="answerQuestion(true)">覚えている (Y)</button>
+            <button onclick="answerQuestion(false)">覚えていない (N)</button>
+            <div id="weblioLink" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <div id="list" class="tab">
+        <h2>List Mode</h2>
+        <button onclick="loadList()">リストを更新・取得</button>
+        <table>
+            <thead><tr><th>単語</th><th>学習回数</th><th>習熟度</th></tr></thead>
+            <tbody id="listTableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // ★★★ ここにあなたのGASのURLを貼り付けてください ★★★
+        const GAS_URL = "https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbw9HLcYHeoJT85Z6zXe9VNEW3XC22_L1DJyYky6ZDxxedJM9niKOkwhKWEXPNNaD27zvg/exec/exec";
+
+        function showTab(tabId) {
+            document.getElementById('study').classList.remove('active');
+            document.getElementById('check').classList.remove('active');
+            document.getElementById('list').classList.remove('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        // --- 通信前のパスワードチェックとエラーハンドリングの共通関数 ---
+        // この関数を通すことで、すべての通信に自動でパスワードがくっつきます
+        async function fetchWithPassword(payload) {
+            const pass = document.getElementById('appPassword').value;
+            if (!pass) {
+                alert("パスワードを入力してください！");
+                return null;
+            }
+            payload.password = pass;
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    console.error('Network response was not ok', response.status);
+                    alert('通信エラーが発生しました。');
+                    return null;
+                }
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                    alert('サーバーからの応答が不正です。');
+                    return null;
+                }
+
+                if (data && data.status === "error") {
+                    alert(data.message);
+                    return null;
+                }
+                return data;
+            } catch (error) {
+                alert("通信エラーが発生しました。");
+                console.error(error);
+                return null;
+            }
+        }
+
+        // --- Study モード ---
+        let tempWords = [];
+
+        function addWordToTemp() {
+            const input = document.getElementById('wordInput');
+            const word = input.value.trim();
+            if (!word) return;
+
+            const currentTime = new Date().getTime();
+            tempWords.push({ wordName: word, time: currentTime });
+            
+            document.getElementById('tempCount').innerText = tempWords.length;
+            input.value = ""; 
+        }
+
+        async function finishStudy() {
+            if (tempWords.length === 0) return alert("送信する単語がありません");
+
+            const payload = { action: "add", words: tempWords };
+            const result = await fetchWithPassword(payload); // 共通関数で送信
+
+            if (result) {
+                alert("スプレッドシートに保存しました！");
+                tempWords = [];
+                document.getElementById('tempCount').innerText = 0;
+            }
+        }
+
+        // --- Check モード ---
+        let reviewQueue = []; 
+        let currentQuestionIndex = 0;
+        let testResults = []; 
+
+        async function startCheck() {
+            const n = document.getElementById('questionCount').value;
+            const payload = { action: "getQuestions", count: parseInt(n) };
+            
+            const result = await fetchWithPassword(payload);
+            if (!result) return; // エラーならここで止める
+
+            if (result.length === 0) {
+                return alert("出題する単語が登録されていません。");
+            }
+
+            reviewQueue = result; 
+            document.getElementById('checkSetup').style.display = 'none';
+            document.getElementById('checkActive').style.display = 'block';
+            
+            currentQuestionIndex = 0;
+            testResults = [];
+            showNextQuestion();
+        }
+
+        function showNextQuestion() {
+            if (currentQuestionIndex >= reviewQueue.length) {
+                finishCheck();
+                return;
+            }
+            const currentWord = reviewQueue[currentQuestionIndex].wordName;
+            document.getElementById('currentWordDisplay').innerText = currentWord;
+            document.getElementById('weblioLink').innerHTML = ""; 
+        }
+
+        function answerQuestion(isRemembered) {
+            const currentWordData = reviewQueue[currentQuestionIndex];
+            const currentTime = new Date().getTime();
+
+            testResults.push({
+                rowNum: currentWordData.rowNum, 
+                isRemembered: isRemembered,
+                time: currentTime
+            });
+            const weblioDiv = document.getElementById('weblioLink');
+            weblioDiv.innerHTML = ""; // 既存内容をクリア
+
+            if (!isRemembered) {
+                const link = `https://ejje.weblio.jp/content/${currentWordData.wordName}`;
+                const a = document.createElement('a');
+                a.href = link;
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+                a.textContent = `Weblioで「${currentWordData.wordName}」を確認する`;
+                weblioDiv.appendChild(a);
+            }
+            
+            currentQuestionIndex++;
+            showNextQuestion();
+        }
+
+        async function finishCheck() {
+            document.getElementById('currentWordDisplay').innerText = "結果を保存中...";
+            
+            const payload = { action: "update", results: testResults };
+            const result = await fetchWithPassword(payload);
+
+            if (result) {
+                alert("テスト完了！結果を保存しました。");
+            }
+            
+            document.getElementById('checkSetup').style.display = 'block';
+            document.getElementById('checkActive').style.display = 'none';
+        }
+
+        // --- List モード ---
+        async function loadList() {
+            const tbody = document.getElementById('listTableBody');
+            tbody.innerHTML = "<tr><td colspan='3'>読み込み中...</td></tr>";
+
+            const payload = { action: "getList" };
+            const listData = await fetchWithPassword(payload);
+
+            if (!listData) {
+                tbody.innerHTML = "<tr><td colspan='3'>読み込みに失敗しました</td></tr>";
+                return;
+            }
+            tbody.innerHTML = "";
+            if (!Array.isArray(listData) || listData.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='3'>まだ単語が登録されていません</td></tr>";
+                return;
+            }
+
+            listData.forEach(function(item) {
+                const tr = document.createElement('tr');
+
+                const tdWord = document.createElement('td');
+                tdWord.textContent = item.wordName || "";
+
+                const tdCount = document.createElement('td');
+                tdCount.textContent = (item.historyCount !== undefined) ? `${item.historyCount} 回` : "";
+
+                const tdLevel = document.createElement('td');
+                tdLevel.textContent = `レベル ${item.mastery || 0}`;
+
+                tr.appendChild(tdWord);
+                tr.appendChild(tdCount);
+                tr.appendChild(tdLevel);
+
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
