@@ -58,7 +58,7 @@
 
     <script>
         // ★★★ ここにあなたのGASのURLを貼り付けてください ★★★
-        const GAS_URL = "https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbw9HLcYHeoJT85Z6zXe9VNEW3XC22_L1DJyYky6ZDxxedJM9niKOkwhKWEXPNNaD27zvg/exec/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw9HLcYHeoJT85Z6zXe9VNEW3XC22_L1DJyYky6ZDxxedJM9niKOkwhKWEXPNNaD27zvg/exec/exec";
 
         function showTab(tabId) {
             document.getElementById('study').classList.remove('active');
@@ -171,7 +171,7 @@
             }
             const currentWord = reviewQueue[currentQuestionIndex].wordName;
             document.getElementById('currentWordDisplay').innerText = currentWord;
-            document.getElementById('weblioLink').innerHTML = ""; 
+            document.getElementById('weblioLink').textContent = ""; 
         }
 
         function answerQuestion(isRemembered) {
@@ -184,7 +184,7 @@
                 time: currentTime
             });
             const weblioDiv = document.getElementById('weblioLink');
-            weblioDiv.innerHTML = ""; // 既存内容をクリア
+            weblioDiv.textContent = ""; // 既存内容をクリア
 
             if (!isRemembered) {
                 const link = `https://ejje.weblio.jp/content/${currentWordData.wordName}`;
@@ -217,18 +217,38 @@
         // --- List モード ---
         async function loadList() {
             const tbody = document.getElementById('listTableBody');
-            tbody.innerHTML = "<tr><td colspan='3'>読み込み中...</td></tr>";
+            // 読み込み中メッセージを安全に表示
+            tbody.textContent = "";
+            (function(){
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 3;
+                td.textContent = '読み込み中...';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            })();
 
             const payload = { action: "getList" };
             const listData = await fetchWithPassword(payload);
 
             if (!listData) {
-                tbody.innerHTML = "<tr><td colspan='3'>読み込みに失敗しました</td></tr>";
+                tbody.textContent = "";
+                const trErr = document.createElement('tr');
+                const tdErr = document.createElement('td');
+                tdErr.colSpan = 3;
+                tdErr.textContent = '読み込みに失敗しました';
+                trErr.appendChild(tdErr);
+                tbody.appendChild(trErr);
                 return;
             }
-            tbody.innerHTML = "";
+            tbody.textContent = "";
             if (!Array.isArray(listData) || listData.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='3'>まだ単語が登録されていません</td></tr>";
+                const trEmpty = document.createElement('tr');
+                const tdEmpty = document.createElement('td');
+                tdEmpty.colSpan = 3;
+                tdEmpty.textContent = 'まだ単語が登録されていません';
+                trEmpty.appendChild(tdEmpty);
+                tbody.appendChild(trEmpty);
                 return;
             }
 
