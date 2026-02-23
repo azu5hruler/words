@@ -4,43 +4,14 @@
     <meta charset="UTF-8">
     <title>Spaced Repetition App</title>
     <style>
-        :root{
-            --bg:#f6f8fb;
-            --card:#ffffff;
-            --muted:#6b7280;
-            --accent:#6c5ce7;
-            --accent-2:#00b894;
-            --glass: rgba(255,255,255,0.6);
-        }
-        @media (prefers-color-scheme: dark){
-            :root{ --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; }
-        }
-        html,body{height:100%;}
-        body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin: 0; background: linear-gradient(180deg,var(--bg), #ffffff); color:#0f1724; }
-        .container{max-width:980px;margin:32px auto;padding:24px;}
-        .app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-        .app-title{font-size:1.25rem;font-weight:700;color:var(--accent)}
-        .app-sub{color:var(--muted);font-size:0.9rem}
-        .security-box{background:linear-gradient(90deg, rgba(255,245,240,0.9), rgba(255,255,255,0.6));padding:10px;border-radius:8px;display:inline-flex;gap:8px;align-items:center;border:1px solid #fdecea}
-        .tabs{display:flex;gap:8px;margin:14px 0}
-        .tabs button{background:transparent;border:1px solid transparent;padding:10px 14px;border-radius:8px;cursor:pointer;color:var(--muted);transition:all .15s}
-        .tabs button:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(40,40,80,0.06)}
-        .tabs button.active-tab{background:linear-gradient(90deg, rgba(108,92,231,0.12), rgba(0,184,148,0.06));color:var(--accent);border-color:rgba(108,92,231,0.12)}
-        .tab{display:none;background:var(--card);border-radius:10px;padding:18px;box-shadow:0 6px 18px rgba(16,24,40,0.04);margin-top:12px}
-        .active{display:block}
-        button.primary{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
-        button.ghost{background:transparent;border:1px solid #e6e9ef;color:var(--muted);padding:8px 12px;border-radius:8px}
-        input[type=text], input[type=password], input[type=number]{padding:10px;border-radius:8px;border:1px solid #e6e9ef;width:100%;box-sizing:border-box}
-        .controls{display:flex;gap:10px;flex-wrap:wrap}
-        table{border-collapse:collapse;width:100%;margin-top:12px;background:transparent}
-        th,td{padding:10px;text-align:left;border-bottom:1px solid #f1f5f9}
-        tbody tr:hover{background:linear-gradient(90deg, rgba(108,92,231,0.03), rgba(0,0,0,0.02))}
-        thead th{color:var(--muted);font-weight:600}
-        .muted{color:var(--muted)}
-        .weblio{margin-top:12px}
-        @media (max-width:720px){.container{padding:16px;margin:12px} .app-header{flex-direction:column;align-items:flex-start;gap:8px}}
+        body { font-family: sans-serif; margin: 20px; }
+        .tab { display: none; padding: 20px; border: 1px solid #ccc; margin-top: 10px; }
+        .active { display: block; }
+        button { padding: 10px; margin: 5px; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
+        .security-box { background: #fee; padding: 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -48,60 +19,46 @@
         <label>🔒 アプリパスワード: </label>
         <input type="password" id="appPassword" placeholder="GASに設定したパスワード">
     </div>
+    <br>
 
-    <div class="container">
-        <header class="app-header">
-            <div>
-                <div class="app-title">Spaced Repetition</div>
-                <div class="app-sub">効率的に英単語を復習します</div>
-            </div>
-            <div class="tabs" role="tablist">
-                <button class="active-tab" onclick="showTab('study')">Study</button>
-                <button onclick="showTab('check')">Check</button>
-                <button onclick="showTab('list')">List</button>
-            </div>
-        </header>
+    <button onclick="showTab('study')">Study</button>
+    <button onclick="showTab('check')">Check</button>
+    <button onclick="showTab('list')">List</button>
 
-        <div id="study" class="tab active">
+    <div id="study" class="tab active">
         <h2>Study Mode</h2>
-        <div class="controls">
-            <input type="text" id="wordInput" placeholder="単語を入力">
-            <button class="primary" onclick="addWordToTemp()">追加</button>
-            <button class="ghost" onclick="finishStudy()">送信</button>
-        </div>
-        <p class="muted">現在の一時保存数: <strong id="tempCount">0</strong></p>
+        <input type="text" id="wordInput" placeholder="単語を入力">
+        <button onclick="addWordToTemp()">追加して一時保存</button>
+        <p>現在の一時保存数: <span id="tempCount">0</span></p>
+        <button onclick="finishStudy()">学習終了（シートへ送信）</button>
     </div>
 
     <div id="check" class="tab">
         <h2>Check Mode</h2>
-        <div id="checkSetup" class="controls">
+        <div id="checkSetup">
             <input type="number" id="questionCount" value="5" min="1" placeholder="問題数 n">
-            <button class="primary" onclick="startCheck()">テスト開始</button>
+            <button onclick="startCheck()">テスト開始</button>
         </div>
         <div id="checkActive" style="display: none;">
             <h3 id="currentWordDisplay">単語名</h3>
-            <div class="controls">
-                <button class="primary" onclick="answerQuestion(true)">覚えている (Y)</button>
-                <button class="ghost" onclick="answerQuestion(false)">覚えていない (N)</button>
-            </div>
+            <button onclick="answerQuestion(true)">覚えている (Y)</button>
+            <button onclick="answerQuestion(false)">覚えていない (N)</button>
             <div id="weblioLink" style="margin-top: 15px;"></div>
         </div>
     </div>
 
     <div id="list" class="tab">
         <h2>List Mode</h2>
-        <button class="primary" onclick="loadList()">リストを更新・取得</button>
+        <button onclick="loadList()">リストを更新・取得</button>
         <table>
             <thead><tr><th>単語</th><th>学習回数</th><th>習熟度</th></tr></thead>
             <tbody id="listTableBody"></tbody>
         </table>
     </div>
 
-    </div>
-
     <script>
         // ★★★ ここにあなたのGASのURLを貼り付けてください ★★★
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbw9HLcYHeoJT85Z6zXe9VNEW3XC22_L1DJyYky6ZDxxedJM9niKOkwhKWEXPNNaD27zvg/exec/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw9HLcYHeoJT85Z6zXe9VNEW3XC22_L1DJyYky6ZDxxedJM9niKOkwhKWEXPNNaD27zvg/exec";
 
         function showTab(tabId) {
             document.getElementById('study').classList.remove('active');
@@ -118,38 +75,40 @@
                 alert("パスワードを入力してください！");
                 return null;
             }
+            // payload（送るデータ）にパスワードを追加
             payload.password = pass;
 
             try {
                 const response = await fetch(GAS_URL, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
-
+                
+                // HTTPステータスコードが200番台でなければエラー
                 if (!response.ok) {
-                    console.error('Network response was not ok', response.status);
-                    alert('通信エラーが発生しました。');
+                    alert(`通信エラー: ${response.status} ${response.statusText}\nGASが正しく公開されていることを確認してください。`);
+                    console.error(`HTTP Error: ${response.status}`, response);
                     return null;
                 }
 
                 let data;
                 try {
                     data = await response.json();
-                } catch (e) {
-                    console.error('Failed to parse JSON:', e);
-                    alert('サーバーからの応答が不正です。');
+                } catch (parseError) {
+                    alert("レスポンスが不正なJSON形式です。GASの設定を確認してください。");
+                    console.error("JSON Parse Error:", parseError, "Response:", await response.text());
                     return null;
                 }
-
-                if (data && data.status === "error") {
+                
+                // GAS側でパスワードが弾かれた場合のエラー表示
+                if (data.status === "error") {
                     alert(data.message);
                     return null;
                 }
                 return data;
             } catch (error) {
-                alert("通信エラーが発生しました。");
-                console.error(error);
+                alert("通信エラーが発生しました。ネットワーク接続を確認してください。");
+                console.error("Fetch Error:", error);
                 return null;
             }
         }
@@ -214,7 +173,7 @@
             }
             const currentWord = reviewQueue[currentQuestionIndex].wordName;
             document.getElementById('currentWordDisplay').innerText = currentWord;
-            document.getElementById('weblioLink').textContent = ""; 
+            document.getElementById('weblioLink').innerHTML = ""; 
         }
 
         function answerQuestion(isRemembered) {
@@ -226,17 +185,12 @@
                 isRemembered: isRemembered,
                 time: currentTime
             });
-            const weblioDiv = document.getElementById('weblioLink');
-            weblioDiv.textContent = ""; // 既存内容をクリア
 
             if (!isRemembered) {
                 const link = `https://ejje.weblio.jp/content/${currentWordData.wordName}`;
-                const a = document.createElement('a');
-                a.href = link;
-                a.target = "_blank";
-                a.rel = "noopener noreferrer";
-                a.textContent = `Weblioで「${currentWordData.wordName}」を確認する`;
-                weblioDiv.appendChild(a);
+                document.getElementById('weblioLink').innerHTML = 
+                    `<a href="${link}" target="_blank">Weblioで「${currentWordData.wordName}」を確認する</a>`;
+                // 覚えていなかった場合は、リンクを押せるように一旦ここで処理を止めます（次の問題へ行くボタンを出すのが親切ですが、今回はそのまま次へ）
             }
             
             currentQuestionIndex++;
@@ -260,57 +214,25 @@
         // --- List モード ---
         async function loadList() {
             const tbody = document.getElementById('listTableBody');
-            // 読み込み中メッセージを安全に表示
-            tbody.textContent = "";
-            (function(){
-                const tr = document.createElement('tr');
-                const td = document.createElement('td');
-                td.colSpan = 3;
-                td.textContent = '読み込み中...';
-                tr.appendChild(td);
-                tbody.appendChild(tr);
-            })();
+            tbody.innerHTML = "<tr><td colspan='3'>読み込み中...</td></tr>";
 
             const payload = { action: "getList" };
             const listData = await fetchWithPassword(payload);
 
             if (!listData) {
-                tbody.textContent = "";
-                const trErr = document.createElement('tr');
-                const tdErr = document.createElement('td');
-                tdErr.colSpan = 3;
-                tdErr.textContent = '読み込みに失敗しました';
-                trErr.appendChild(tdErr);
-                tbody.appendChild(trErr);
+                tbody.innerHTML = "<tr><td colspan='3'>読み込みに失敗しました</td></tr>";
                 return;
             }
-            tbody.textContent = "";
-            if (!Array.isArray(listData) || listData.length === 0) {
-                const trEmpty = document.createElement('tr');
-                const tdEmpty = document.createElement('td');
-                tdEmpty.colSpan = 3;
-                tdEmpty.textContent = 'まだ単語が登録されていません';
-                trEmpty.appendChild(tdEmpty);
-                tbody.appendChild(trEmpty);
+
+            tbody.innerHTML = ""; 
+            if (listData.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='3'>まだ単語が登録されていません</td></tr>";
                 return;
             }
 
             listData.forEach(function(item) {
                 const tr = document.createElement('tr');
-
-                const tdWord = document.createElement('td');
-                tdWord.textContent = item.wordName || "";
-
-                const tdCount = document.createElement('td');
-                tdCount.textContent = (item.historyCount !== undefined) ? `${item.historyCount} 回` : "";
-
-                const tdLevel = document.createElement('td');
-                tdLevel.textContent = `レベル ${item.mastery || 0}`;
-
-                tr.appendChild(tdWord);
-                tr.appendChild(tdCount);
-                tr.appendChild(tdLevel);
-
+                tr.innerHTML = `<td>${item.wordName}</td><td>${item.historyCount} 回</td><td>レベル ${item.mastery}</td>`;
                 tbody.appendChild(tr);
             });
         }
